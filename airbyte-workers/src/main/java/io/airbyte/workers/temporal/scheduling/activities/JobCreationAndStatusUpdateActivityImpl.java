@@ -83,7 +83,7 @@ public class JobCreationAndStatusUpdateActivityImpl implements JobCreationAndSta
 
         return new JobCreationOutput(jobId);
       }
-    } catch (JsonValidationException | ConfigNotFoundException | IOException e) {
+    } catch (final JsonValidationException | ConfigNotFoundException | IOException e) {
       throw new RetryableException(e);
     }
   }
@@ -139,7 +139,7 @@ public class JobCreationAndStatusUpdateActivityImpl implements JobCreationAndSta
   public void attemptFailure(final AttemptFailureInput input) {
     try {
       jobPersistence.failAttempt(input.getJobId(), input.getAttemptId());
-      final Job job = jobPersistence.getJob(input.getJobId());
+      jobPersistence.writeAttemptFailureSummary(input.getJobId(), input.getAttemptId(), input.getAttemptFailureSummary());
     } catch (final IOException e) {
       throw new RetryableException(e);
     }
@@ -149,6 +149,7 @@ public class JobCreationAndStatusUpdateActivityImpl implements JobCreationAndSta
   public void jobCancelled(final JobCancelledInput input) {
     try {
       jobPersistence.cancelJob(input.getJobId());
+      jobPersistence.writeAttemptFailureSummary(input.getJobId(), input.getAttemptId(), input.getAttemptFailureSummary());
       final Job job = jobPersistence.getJob(input.getJobId());
       trackCompletion(job, JobStatus.FAILED);
       jobNotifier.failJob("Job was cancelled", job);
