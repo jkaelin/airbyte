@@ -204,7 +204,7 @@ public class JobCreationAndStatusUpdateActivityTest {
 
     @Test
     public void setJobCancelled() throws IOException {
-      jobCreationAndStatusUpdateActivity.jobCancelled(new JobCancelledInput(JOB_ID, ATTEMPT_ID, ATTEMPT_FAILURE_SUMMARY));
+      jobCreationAndStatusUpdateActivity.jobCancelled(new JobCancelledInput(JOB_ID, ATTEMPT_ID));
 
       Mockito.verify(mJobPersistence).cancelJob(JOB_ID);
     }
@@ -214,7 +214,9 @@ public class JobCreationAndStatusUpdateActivityTest {
       Mockito.doThrow(new IOException())
           .when(mJobPersistence).cancelJob(JOB_ID);
 
-      Assertions.assertThatThrownBy(() -> jobCreationAndStatusUpdateActivity.jobCancelled(new JobCancelledInput(JOB_ID, ATTEMPT_ID, ATTEMPT_FAILURE_SUMMARY)))
+      Assertions
+          .assertThatThrownBy(
+              () -> jobCreationAndStatusUpdateActivity.jobCancelled(new JobCancelledInput(JOB_ID, ATTEMPT_ID)))
           .isInstanceOf(RetryableException.class)
           .hasCauseInstanceOf(IOException.class);
     }

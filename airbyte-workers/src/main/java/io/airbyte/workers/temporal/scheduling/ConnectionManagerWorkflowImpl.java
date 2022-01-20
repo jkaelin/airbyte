@@ -240,7 +240,7 @@ public class ConnectionManagerWorkflowImpl implements ConnectionManagerWorkflow 
     }
   }
 
-  private void resetNewConnectionInput(ConnectionUpdaterInput connectionUpdaterInput) {
+  private void resetNewConnectionInput(final ConnectionUpdaterInput connectionUpdaterInput) {
     connectionUpdaterInput.setJobId(null);
     connectionUpdaterInput.setAttemptNumber(1);
     connectionUpdaterInput.setFromFailure(false);
