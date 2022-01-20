@@ -138,7 +138,7 @@ public class ConnectionManagerWorkflowImpl implements ConnectionManagerWorkflow 
 
               if (standardSyncSummary != null && standardSyncSummary.getStatus() == ReplicationStatus.FAILED) {
                 failures.addAll(standardSyncOutput.get().getFailures());
-                partialSuccess = standardSyncOutput.get().getStandardSyncSummary().getTotalStats().getRecordsCommitted() > 0;
+                partialSuccess = standardSyncSummary.getTotalStats().getRecordsCommitted() > 0;
                 workflowState.setFailed(true);
               }
             } catch (final ChildWorkflowFailure childWorkflowFailure) {
