@@ -190,6 +190,7 @@ public class JobCreationAndStatusUpdateActivityTest {
       jobCreationAndStatusUpdateActivity.attemptFailure(new AttemptFailureInput(JOB_ID, ATTEMPT_ID, ATTEMPT_FAILURE_SUMMARY));
 
       Mockito.verify(mJobPersistence).failAttempt(JOB_ID, ATTEMPT_ID);
+      Mockito.verify(mJobPersistence).writeAttemptFailureSummary(JOB_ID, ATTEMPT_ID, ATTEMPT_FAILURE_SUMMARY);
     }
 
     @Test
