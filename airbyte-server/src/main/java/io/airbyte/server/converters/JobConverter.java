@@ -11,12 +11,14 @@ import io.airbyte.api.model.AttemptStatus;
 import io.airbyte.api.model.AttemptStreamStats;
 import io.airbyte.api.model.JobConfigType;
 import io.airbyte.api.model.JobInfoRead;
+import io.airbyte.api.model.JobDebugInfoRead;
 import io.airbyte.api.model.JobRead;
 import io.airbyte.api.model.JobStatus;
 import io.airbyte.api.model.JobWithAttemptsRead;
 import io.airbyte.api.model.LogRead;
 import io.airbyte.api.model.SynchronousJobRead;
 import io.airbyte.commons.enums.Enums;
+import io.airbyte.commons.version.AirbyteVersion;
 import io.airbyte.config.Configs.WorkerEnvironment;
 import io.airbyte.config.JobOutput;
 import io.airbyte.config.StandardSyncOutput;
@@ -51,6 +53,17 @@ public class JobConverter {
     return new JobInfoRead()
         .job(getJobWithAttemptsRead(job).getJob())
         .attempts(job.getAttempts().stream().map(attempt -> getAttemptInfoRead(attempt)).collect(Collectors.toList()));
+  }
+
+  public JobDebugRead getDebugJobInfoRead(final JobInfoRead jobInfoRead, final SourceDefinitionRead sourceDefinitionRead, final DestinationDefinitionRead destinationDefinitionRead, final AirbyteVersion airbyteVersion) {
+    return new JobDebugRead()
+            .id(jobInfoRead.getId())
+            .configId(jobInfoRead.getConfigId())
+            .configType(jobInfoRead.getConfigType())
+            .statue(jobInfoRead.getStatus())
+            .airbyteVersion(airbyteVersion.serialize())
+            .sourceDefinition(sourceDefinitionRead)
+            .destinationDefinition(destinationDefinitionRead);
   }
 
   public static JobWithAttemptsRead getJobWithAttemptsRead(final Job job) {
