@@ -220,9 +220,7 @@ public class ConnectionManagerWorkflowImpl implements ConnectionManagerWorkflow 
         new AttemptFailureInput(
             connectionUpdaterInput.getJobId(),
             connectionUpdaterInput.getAttemptId(),
-            FailureHelper.failureSummary(failures, partialSuccess)
-        )
-    );
+            FailureHelper.failureSummary(failures, partialSuccess)));
     final int maxAttempt = configFetchActivity.getMaxAttempt().getMaxAttempt();
     final int attemptNumber = connectionUpdaterInput.getAttemptNumber();
 
