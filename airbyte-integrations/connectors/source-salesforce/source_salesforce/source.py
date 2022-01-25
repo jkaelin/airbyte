@@ -43,7 +43,7 @@ class SourceSalesforce(AbstractSource):
         if config.get("exclude_types"):
             excluded_types = config["exclude_types"]
         return excluded_types
-            
+
     @classmethod
     def generate_streams(
         cls, config: Mapping[str, Any], stream_names: List[str], sf_object: Salesforce, state: Mapping[str, Any] = None, stream_objects: List = None
@@ -69,7 +69,10 @@ class SourceSalesforce(AbstractSource):
                 full_refresh, incremental = BulkSalesforceStream, BulkIncrementalSalesforceStream
                 streams_kwargs["wait_timeout"] = config.get("wait_timeout")
 
-            json_schema = sf_object.generate_schema(stream_name, stream_objects)
+            user_excluded_fields = cls.get_user_excluded_fields(config=config, stream_name=stream_name)
+            user_excluded_types = cls.get_user_excluded_types(config=config)
+            json_schema = sf_object.generate_schema(stream_name, stream_objects, exclude_fields=user_excluded_fields, exclude_types=user_excluded_types)
+
             pk, replication_key = sf_object.get_pk_and_replication_key(json_schema)
             streams_kwargs.update(dict(sf_api=sf_object, pk=pk, stream_name=stream_name, schema=json_schema, authenticator=authenticator))
             if replication_key and stream_name not in UNSUPPORTED_FILTERING_STREAMS:

@@ -273,11 +273,12 @@ class Salesforce:
             self.logger.error(f"Filtered stream objects: {stream_objects}")
         return resp.json()
 
-    def generate_schema(self, stream_name: str = None, stream_objects: List = None) -> Mapping[str, Any]:
+    def generate_schema(self, stream_name: str = None, stream_objects: List = None, exclude_fields: List = [], exclude_types: List = []) -> Mapping[str, Any]:
         response = self.describe(stream_name, stream_objects)
         schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "additionalProperties": True, "properties": {}}
         for field in response["fields"]:
-            schema["properties"][field["name"]] = self.field_to_property_schema(field)
+            if field["name"] not in exclude_fields and field["type"] not in exclude_types:
+                schema["properties"][field["name"]] = self.field_to_property_schema(field)
         return schema
 
     @staticmethod
