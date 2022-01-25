@@ -27,6 +27,23 @@ class SourceSalesforce(AbstractSource):
         _ = self._get_sf_object(config)
         return True, None
 
+    @staticmethod
+    def get_user_excluded_fields(config: Mapping[str, Any], stream_name: str) -> List[str]:        
+        excluded_fields = []
+        if config.get("exclude_fields") and stream_name is not None:
+            for f in config["exclude_fields"]:
+                if '.' in f:
+                    if f.split('.')[0] == stream_name:
+                        excluded_fields.append(f.split('.')[1])
+        return excluded_fields
+
+    @staticmethod
+    def get_user_excluded_types(config: Mapping[str, Any]) -> List[str]:
+        excluded_types = []
+        if config.get("exclude_types"):
+            excluded_types = config["exclude_types"]
+        return excluded_types
+            
     @classmethod
     def generate_streams(
         cls, config: Mapping[str, Any], stream_names: List[str], sf_object: Salesforce, state: Mapping[str, Any] = None, stream_objects: List = None
