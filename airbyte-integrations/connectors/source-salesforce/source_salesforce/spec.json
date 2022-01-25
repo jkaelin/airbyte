@@ -71,6 +71,24 @@
         "title": "Streams filter criteria",
         "description": "Add selection criteria for streams to get only streams that are relevant to you"
       },
+      "exclude_fields": {
+        "title": "Fields to Exclude",
+        "description": "Add any fields that should always be excluded using Stream.Field syntax",
+        "examples": ["Contact.SSN", "CustomerPayment.PrimaryCC"],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "exclude_types": {
+        "title": "Data Types to Exclude",
+        "description": "Add any field types that should always be excluded",
+        "examples": ["encryptedstring", "address"],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },      
       "wait_timeout": {
         "title": "Response Waiting Time",
         "description": "Maximum wait time of Salesforce responses in minutes. This option is used for the BULK mode only. The default wait time of the Parent Batch in the Bulk Mode to wait for all the batches to finish processing is 20 minutes.",
