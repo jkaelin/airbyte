@@ -264,21 +264,26 @@ class Salesforce:
     def describe(self, sobject: str = None, stream_objects: List = None) -> Mapping[str, Any]:
         """Describes all objects or a specific object"""
         headers = self._get_standard_headers()
-
         endpoint = "sobjects" if not sobject else f"sobjects/{sobject}/describe"
-
         url = f"{self.instance_url}/services/data/{self.version}/{endpoint}"
+
         resp = self._make_request("GET", url, headers=headers)
         if resp.status_code == 404:
             self.logger.error(f"Filtered stream objects: {stream_objects}")
         return resp.json()
 
-    def generate_schema(self, stream_name: str = None, stream_objects: List = None, exclude_fields: List = [], exclude_types: List = []) -> Mapping[str, Any]:
+    def generate_schema(
+        self, stream_name: str = None, stream_objects: List = None, exclude_fields: List = [], exclude_types: List = []
+    ) -> Mapping[str, Any]:
+        self.logger.info(f"Getting schema for {stream_name}")
         response = self.describe(stream_name, stream_objects)
         schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "additionalProperties": True, "properties": {}}
         for field in response["fields"]:
             if field["name"] not in exclude_fields and field["type"] not in exclude_types:
                 schema["properties"][field["name"]] = self.field_to_property_schema(field)
+            else:
+                self.logger.info(f"\tSkipping {stream_name}.{field['name']} per user exclusions")
+        self.logger.info(f"Found {len(schema['properties'])} fields to sync for {stream_name}")
         return schema
 
     @staticmethod
