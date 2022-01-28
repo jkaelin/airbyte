@@ -276,6 +276,8 @@ class Salesforce:
         self, stream_name: str = None, stream_objects: List = None, exclude_fields: List = [], exclude_types: List = []
     ) -> Mapping[str, Any]:
         self.logger.info(f"Getting schema for {stream_name}")
+        self.logger.info(f"exclude_fields={exclude_fields}")
+        self.logger.info(f"exclude_types={exclude_types}")
         response = self.describe(stream_name, stream_objects)
         schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "additionalProperties": True, "properties": {}}
         for field in response["fields"]:

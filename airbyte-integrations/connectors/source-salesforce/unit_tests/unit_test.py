@@ -4,7 +4,7 @@
 
 import csv
 import io
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 import requests_mock
@@ -12,7 +12,12 @@ from airbyte_cdk.models import SyncMode
 from requests.exceptions import HTTPError
 from source_salesforce.api import Salesforce
 from source_salesforce.source import SourceSalesforce
-from source_salesforce.streams import BulkIncrementalSalesforceStream, BulkSalesforceStream, IncrementalSalesforceStream, SalesforceStream
+from source_salesforce.streams import (
+    BulkIncrementalSalesforceStream,
+    BulkSalesforceStream,
+    IncrementalSalesforceStream,
+    SalesforceStream,
+)
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +83,9 @@ def stream_api_v2(stream_config):
 
 
 def _generate_stream(stream_name, stream_config, stream_api, state=None):
-    return SourceSalesforce.generate_streams(stream_config, [stream_name], stream_api, state=state)[0]
+    return SourceSalesforce.generate_streams(
+        logger=MagicMock(), config=stream_config, stream_names=[stream_name], sf_object=stream_api, state=state
+    )[0]
 
 
 def test_bulk_sync_creation_failed(stream_config, stream_api):
@@ -133,7 +140,7 @@ def test_stream_has_no_state_bulk_api_should_be_used(stream_config, stream_api):
 def test_bulk_sync_pagination(item_number, stream_config, stream_api):
     stream: BulkIncrementalSalesforceStream = _generate_stream("Account", stream_config, stream_api)
     test_ids = [i for i in range(1, item_number)]
-    pages = [test_ids[i : i + stream.page_size] for i in range(0, len(test_ids), stream.page_size)]
+    pages = [test_ids[i : i + stream.page_size] for i in range(0, len(test_ids), stream.page_size)]  # noqa E203
     if not pages:
         pages = [[]]
     with requests_mock.Mocker() as m:
@@ -317,6 +324,88 @@ def test_discover_with_streams_criteria_param(streams_criteria, predicted_filter
     )
     filtered_streams, _ = sf_object.get_validated_streams(config=updated_config)
     assert sorted(filtered_streams) == sorted(predicted_filtered_streams)
+
+
+@pytest.mark.parametrize(
+    "exclude_fields,predicted_fields",
+    [
+        # no exclusions, should return all
+        ([], ["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"]),
+        # fields without objects, should return all
+        (["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"], ["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"]),
+        # 2 object-applicable exclusions, should return subset
+        (["MockObject.SocialSecurityNumber", "MockObject.PrimaryCC"], ["Id", "SystemModstamp"]),
+        # 2 object-inapplicable exclusions, should return all
+        (["AltObject.SocialSecurityNumber", "AltObject.PrimaryCC"], ["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"]),
+        # 1 object-applicable, 1 object-inapplicable exclusions, should return subset
+        (["MockObject.SocialSecurityNumber", "AltObject.PrimaryCC"], ["Id", "SystemModstamp", "PrimaryCC"]),
+    ],
+)
+def test_schema_with_user_excluded_fields(exclude_fields, predicted_fields, stream_config):
+    updated_config = {**stream_config, **{"exclude_fields": exclude_fields}}
+    sf_object = Salesforce(**stream_config)
+    sf_object.login = Mock()
+    sf_object.access_token = Mock()
+    sf_object.instance_url = "https://fase-account.salesforce.com"
+    sf_object.describe = Mock(
+        return_value={
+            "fields": [
+                {"name": "Id", "type": "reference"},
+                {"name": "SystemModstamp", "type": "datetime"},
+                {"name": "SocialSecurityNumber", "type": "string"},
+                {"name": "PrimaryCC", "type": "encryptedstring"},
+            ]
+        }
+    )
+    test_stream_name = "MockObject"
+    test_exclude_fields = SourceSalesforce.get_user_excluded_fields(config=updated_config, stream_name=test_stream_name)
+    json_schema = sf_object.generate_schema(stream_name=test_stream_name, exclude_fields=test_exclude_fields)
+    returned_properties = json_schema.get("properties", {})
+    schema_fields = returned_properties.keys()
+    print(f"schema_fields={schema_fields}")
+    print(f"exclude_fields={test_exclude_fields}")
+    print(f"predicted_fields={predicted_fields}")
+    assert len(schema_fields) == len(predicted_fields)
+
+
+@pytest.mark.parametrize(
+    "exclude_types,predicted_fields",
+    [
+        # no exclusions, should return all
+        ([], ["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"]),
+        # specific type, should exclude the column of that type
+        (["encryptedstring"], ["Id", "SystemModstamp", "SocialSecurityNumber"]),
+        # 2 specific types, should exclude the column of those types
+        (["string", "encryptedstring"], ["Id", "SystemModstamp"]),
+        # 2 object-inapplicable types, should return all
+        (["faketype1", "faketype2"], ["Id", "SystemModstamp", "SocialSecurityNumber", "PrimaryCC"]),
+    ],
+)
+def test_schema_with_user_excluded_types(exclude_types, predicted_fields, stream_config):
+    updated_config = {**stream_config, **{"exclude_types": exclude_types}}
+    sf_object = Salesforce(**stream_config)
+    sf_object.login = Mock()
+    sf_object.access_token = Mock()
+    sf_object.instance_url = "https://fase-account.salesforce.com"
+    sf_object.describe = Mock(
+        return_value={
+            "fields": [
+                {"name": "Id", "type": "reference"},
+                {"name": "SystemModstamp", "type": "datetime"},
+                {"name": "SocialSecurityNumber", "type": "string"},
+                {"name": "PrimaryCC", "type": "encryptedstring"},
+            ]
+        }
+    )
+    test_stream_name = "MockObject"
+    test_exclude_types = SourceSalesforce.get_user_excluded_types(config=updated_config)
+    json_schema = sf_object.generate_schema(stream_name=test_stream_name, exclude_types=test_exclude_types)
+    returned_properties = json_schema.get("properties", {})
+    schema_fields = returned_properties.keys()
+    print(f"schema_fields={schema_fields}")
+    print(f"exclude_types={test_exclude_types}")
+    print(f"predicted_fields={predicted_fields}")
+    assert len(schema_fields) == len(predicted_fields)
 
 
 def test_discover_only_queryable(stream_config):
