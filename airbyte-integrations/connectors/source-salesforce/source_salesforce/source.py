@@ -11,18 +11,10 @@ from airbyte_cdk.sources import AbstractSource
 from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.http.auth import TokenAuthenticator
 from airbyte_cdk.sources.utils.schema_helpers import split_config
+from requests import codes, exceptions
 
-from .api import (
-    UNSUPPORTED_BULK_API_SALESFORCE_OBJECTS,
-    UNSUPPORTED_FILTERING_STREAMS,
-    Salesforce,
-)
-from .streams import (
-    BulkIncrementalSalesforceStream,
-    BulkSalesforceStream,
-    IncrementalSalesforceStream,
-    SalesforceStream,
-)
+from .api import UNSUPPORTED_BULK_API_SALESFORCE_OBJECTS, UNSUPPORTED_FILTERING_STREAMS, Salesforce
+from .streams import BulkIncrementalSalesforceStream, BulkSalesforceStream, IncrementalSalesforceStream, SalesforceStream
 
 
 class SourceSalesforce(AbstractSource):
@@ -33,8 +25,15 @@ class SourceSalesforce(AbstractSource):
         return sf
 
     def check_connection(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> Tuple[bool, any]:
-        _ = self._get_sf_object(config)
-        return True, None
+        try:
+            _ = self._get_sf_object(config)
+            return True, None
+        except exceptions.HTTPError as error:
+            error_data = error.response.json()[0]
+            error_code = error_data.get("errorCode")
+            if error.response.status_code == codes.FORBIDDEN and error_code == "REQUEST_LIMIT_EXCEEDED":
+                logger.warn(f"API Call limit is exceeded. Error message: '{error_data.get('message')}'")
+                return False, "API Call limit is exceeded"
 
     @staticmethod
     def get_user_excluded_fields(config: Mapping[str, Any], stream_name: str) -> List[str]:
@@ -144,6 +143,14 @@ class SourceSalesforce(AbstractSource):
                     connector_state=connector_state,
                     internal_config=internal_config,
                 )
+            except exceptions.HTTPError as error:
+                error_data = error.response.json()[0]
+                error_code = error_data.get("errorCode")
+                if error.response.status_code == codes.FORBIDDEN and error_code == "REQUEST_LIMIT_EXCEEDED":
+                    logger.warn(f"API Call limit is exceeded. Error message: '{error_data.get('message')}'")
+                    break  # if got 403 rate limit response, finish the sync with success.
+                raise error
+
             except Exception as e:
                 logger.exception(f"Encountered an exception while reading stream {self.name}")
                 raise e
