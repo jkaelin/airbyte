@@ -209,11 +209,14 @@ class Salesforce:
     def get_validated_streams(self, config: Mapping[str, Any], catalog: ConfiguredAirbyteCatalog = None):
         salesforce_objects = self.describe()["sobjects"]
         stream_objects = []
+        ignored_objects = []
         for stream_object in salesforce_objects:
             if stream_object["queryable"]:
                 stream_objects.append(stream_object)
             else:
-                self.logger.warn(f"Stream {stream_object['name']} is not queryable and will be ignored.")
+                ignored_objects.append(stream_object)
+        if len(ignored_objects) > 0:
+            self.logger.warn(f"These streams are not queryable and will be ignored: {ignored_objects}")
 
         stream_names = [stream_object["name"] for stream_object in stream_objects]
         if catalog:
@@ -276,8 +279,8 @@ class Salesforce:
         self, stream_name: str = None, stream_objects: List = None, exclude_fields: List = [], exclude_types: List = []
     ) -> Mapping[str, Any]:
         self.logger.info(f"Getting schema for {stream_name}")
-        self.logger.info(f"exclude_fields={exclude_fields}")
-        self.logger.info(f"exclude_types={exclude_types}")
+        self.logger.info(f"\texclude_fields={exclude_fields}")
+        self.logger.info(f"\texclude_types={exclude_types}")
         response = self.describe(stream_name, stream_objects)
         schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "additionalProperties": True, "properties": {}}
         for field in response["fields"]:

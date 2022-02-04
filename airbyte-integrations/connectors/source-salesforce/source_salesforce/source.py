@@ -57,16 +57,17 @@ class SourceSalesforce(AbstractSource):
     @classmethod
     def generate_streams(
         cls,
-        logger: AirbyteLogger,
         config: Mapping[str, Any],
         stream_names: List[str],
         sf_object: Salesforce,
         state: Mapping[str, Any] = None,
         stream_objects: List = None,
+        logger: AirbyteLogger = AirbyteLogger(),
     ) -> List[Stream]:
         """ "Generates a list of stream by their names. It can be used for different tests too"""
         authenticator = TokenAuthenticator(sf_object.access_token)
         streams = []
+        logger.info("source:generate_streams")
         for stream_name in stream_names:
 
             streams_kwargs = {}
@@ -75,8 +76,8 @@ class SourceSalesforce(AbstractSource):
             user_excluded_fields = cls.get_user_excluded_fields(config=config, stream_name=stream_name)
             user_excluded_types = cls.get_user_excluded_types(config=config)
 
-            logger.debug(f"User excluded fields for {stream_name}: {user_excluded_fields}")
-            logger.debug(f"User excluded types: {user_excluded_types}")
+            logger.info(f"User excluded fields for {stream_name}: {user_excluded_fields}")
+            logger.info(f"User excluded types: {user_excluded_types}")
 
             json_schema = sf_object.generate_schema(
                 stream_name, stream_objects, exclude_fields=user_excluded_fields, exclude_types=user_excluded_types
@@ -88,12 +89,17 @@ class SourceSalesforce(AbstractSource):
             properties_not_supported_by_bulk = {
                 key: value for key, value in selected_properties.items() if value.get("format") == "base64" or "object" in value["type"]
             }
-
             if stream_state or stream_name in UNSUPPORTED_BULK_API_SALESFORCE_OBJECTS or properties_not_supported_by_bulk:
                 # Use REST API
+                logger.info("Using REST API")
+                if properties_not_supported_by_bulk:
+                    logger.info(f"These stream properties are not supported by BULK API: {properties_not_supported_by_bulk}")
+                if stream_name in UNSUPPORTED_BULK_API_SALESFORCE_OBJECTS:
+                    logger.info(f"{stream_name} does not support BULK API")
                 full_refresh, incremental = SalesforceStream, IncrementalSalesforceStream
             else:
                 # Use BULK API
+                logger.info("Using BULK API")
                 full_refresh, incremental = BulkSalesforceStream, BulkIncrementalSalesforceStream
                 streams_kwargs["wait_timeout"] = config.get("wait_timeout")
 
@@ -107,11 +113,17 @@ class SourceSalesforce(AbstractSource):
         return streams
 
     def streams(
-        self, logger: AirbyteLogger, config: Mapping[str, Any], catalog: ConfiguredAirbyteCatalog = None, state: Mapping[str, Any] = None
+        self,
+        config: Mapping[str, Any],
+        catalog: ConfiguredAirbyteCatalog = None,
+        state: Mapping[str, Any] = None,
+        logger: AirbyteLogger = AirbyteLogger(),
     ) -> List[Stream]:
         sf = self._get_sf_object(config)
         stream_names, stream_objects = sf.get_validated_streams(config=config, catalog=catalog)
-        return self.generate_streams(logger, config, stream_names, sf, state=state, stream_objects=stream_objects)
+        return self.generate_streams(
+            config=config, stream_names=stream_names, sf_object=sf, state=state, stream_objects=stream_objects, logger=logger
+        )
 
     def read(
         self, logger: AirbyteLogger, config: Mapping[str, Any], catalog: ConfiguredAirbyteCatalog, state: MutableMapping[str, Any] = None
@@ -124,7 +136,7 @@ class SourceSalesforce(AbstractSource):
         config, internal_config = split_config(config)
         # get the streams once in case the connector needs to make any queries to generate them
         logger.info("Starting generating streams")
-        stream_instances = {s.name: s for s in self.streams(logger, config, catalog=catalog, state=state)}
+        stream_instances = {s.name: s for s in self.streams(logger=logger, config=config, catalog=catalog, state=state)}
         logger.info(f"Starting syncing {self.name}")
         self._stream_to_instance_map = stream_instances
         for configured_stream in catalog.streams:

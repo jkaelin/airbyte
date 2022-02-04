@@ -269,7 +269,6 @@ class BulkSalesforceStream(SalesforceStream):
         """
         Salesforce SOQL Query: https://developer.salesforce.com/docs/atlas.en-us.232.0.api_rest.meta/api_rest/dome_queryall.htm
         """
-
         selected_properties = self.get_json_schema().get("properties", {})
         query = f"SELECT {','.join(selected_properties.keys())} FROM {self.name} "
         if next_page_token:
@@ -334,7 +333,6 @@ class IncrementalSalesforceStream(SalesforceStream, ABC):
             If `next_page_token` is set, subsequent requests use `nextRecordsUrl`, and do not include any parameters.
             """
             return {}
-
         selected_properties = self.get_json_schema().get("properties", {})
 
         stream_date = stream_state.get(self.cursor_field)
